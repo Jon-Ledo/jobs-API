@@ -1,5 +1,6 @@
 const User = require('../models/User')
 const { StatusCodes } = require('http-status-codes')
+const { BadRequestError, UnauthenticatedError } = require('../errors')
 
 const register = async (req, res) => {
   // // create a temporary user object for bcrypt
@@ -26,7 +27,27 @@ const register = async (req, res) => {
 }
 
 const login = async (req, res) => {
-  res.send('login user')
+  const { email, password } = req.body
+
+  // check if email and password exist
+  if (!email || !password) {
+    throw new BadRequestError('Please provide email and password')
+  }
+
+  // check if email matches one in DB
+  const user = await User.findOne({ email })
+  if (!user) {
+    throw new UnauthenticatedError('Invalid credentials')
+  }
+
+  // comparing the password if there is a user
+  const isPasswordCorrect = await user.comparePassword(password)
+  if (!isPasswordCorrect) {
+    throw new UnauthenticatedError('Invalid credentials')
+  }
+
+  const token = user.createJWT()
+  res.status(StatusCodes.OK).json({ user: { name: user.name }, token })
 }
 
 module.exports = {
